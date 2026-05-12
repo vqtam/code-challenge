@@ -22,8 +22,6 @@ export const tokenNames: Record<string, string> = {
   WBTC: 'Wrapped Bitcoin',
 };
 
-export const popularSymbols = ['ETH', 'USDC', 'USDT', 'BTC', 'ATOM', 'OSMO', 'SWTH'];
-
 export function getTokenName(symbol: string) {
   return tokenNames[symbol] ?? symbol;
 }

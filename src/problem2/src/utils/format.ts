@@ -29,3 +29,20 @@ export function formatRate(value: number) {
     maximumFractionDigits: value >= 1 ? 6 : 8,
   }).format(value);
 }
+
+export function formatPriceTimestamp(value: string | null) {
+  if (!value) {
+    return 'Unavailable';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Unavailable';
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}

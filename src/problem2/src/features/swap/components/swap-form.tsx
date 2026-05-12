@@ -1,7 +1,6 @@
 import {
   ActionIcon,
   Alert,
-  Box,
   Button,
   Collapse,
   Divider,
@@ -12,27 +11,17 @@ import {
   Text,
   TextInput,
 } from '@mantine/core';
+import { createStyles } from '@mantine/emotion';
 import { IconArrowsDownUp, IconChevronDown, IconInfoCircle } from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
 import { Controller } from 'react-hook-form';
 
+import { DetailRow } from '@/components/detail-row/detail-row';
 import { OverflowTooltip } from '@/components/overflow-tooltip/overflow-tooltip';
 import { TokenIcon } from '@/components/token-icon/token-icon';
-import { formatRate, formatTokenAmount, formatUsd } from '@/utils/format';
+import { formatPriceTimestamp, formatRate, formatTokenAmount, formatUsd } from '@/utils/format';
 
-import {
-  MOCK_MAX_SLIPPAGE_LABEL,
-  MOCK_NETWORK_FEE_USD,
-  MOCK_PRICE_IMPACT_LABEL,
-  OUTPUT_AMOUNT_FONT_SIZE,
-  MIN_SUPPORTED_TOKEN_COUNT,
-  SWAP_DETAILS_BUTTON_SIZE,
-  SWAP_FORM_WIDTH,
-  SWAP_SKELETON_DELAY_MS,
-  SWAP_TOKEN_BUTTON_ICON_SIZE,
-  SWAP_TOKEN_BUTTON_MAX_WIDTH,
-  SWAP_TOKEN_BUTTON_MIN_WIDTH,
-} from '../constants';
+import { MIN_SUPPORTED_TOKEN_COUNT } from '../constants';
 import { useDelayedVisible } from '../hooks/use-delayed-visible';
 import { type ModalTarget, useSwapForm } from '../hooks/use-swap-form';
 import { useSwapQuote } from '../hooks/use-swap-quote';
@@ -40,6 +29,125 @@ import { useSubmitSwap } from '../hooks/use-submit-swap';
 import { useTokenListQuery } from '../hooks/use-token-list-query';
 import type { Token } from '../types/token';
 import { TokenSelectorModal } from './token-selector-modal';
+
+const SWAP_SKELETON_DELAY_MS = 160;
+
+const useStyles = createStyles((theme, _params, u) => ({
+  form: {
+    padding: theme.spacing.md,
+    width: 'min(100%, 460px)',
+
+    [u.smallerThan('sm')]: {
+      padding: theme.spacing.xs,
+    },
+  },
+  formStack: {
+    [u.smallerThan('sm')]: {
+      gap: theme.spacing.sm,
+    },
+  },
+  title: {
+    [u.smallerThan('sm')]: {
+      fontSize: theme.fontSizes.md,
+    },
+  },
+  description: {
+    [u.smallerThan('sm')]: {
+      fontSize: theme.fontSizes.xs,
+    },
+  },
+  swapCard: {
+    padding: theme.spacing.md,
+
+    [u.smallerThan('sm')]: {
+      padding: theme.spacing.xs,
+    },
+  },
+  cardHeader: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cardLabel: {
+    [u.smallerThan('sm')]: {
+      fontSize: theme.fontSizes.xs,
+    },
+  },
+  tokenButton: {
+    flexShrink: 0,
+    height: 32,
+    maxWidth: 154,
+    minHeight: 32,
+    minWidth: 112,
+    paddingInline: 8,
+
+    [u.smallerThan('sm')]: {
+      fontSize: theme.fontSizes.xs,
+      maxWidth: 108,
+      minWidth: 88,
+      paddingInline: 6,
+    },
+  },
+  tokenButtonInner: {
+    [u.smallerThan('sm')]: {
+      gap: 4,
+    },
+  },
+  tokenButtonIcon: {
+    [u.smallerThan('sm')]: {
+      height: 16,
+      minWidth: 16,
+      width: 16,
+    },
+  },
+  tokenButtonSkeleton: {
+    width: 154,
+
+    [u.smallerThan('sm')]: {
+      maxWidth: 108,
+      minWidth: 88,
+      width: 108,
+    },
+  },
+  amountField: {
+    alignItems: 'center',
+    display: 'flex',
+    minHeight: 34,
+
+    [u.smallerThan('sm')]: {
+      minHeight: 30,
+    },
+  },
+  helperText: {
+    width: '100%',
+
+    [u.smallerThan('sm')]: {
+      fontSize: theme.fontSizes.xs,
+    },
+  },
+  outputAmount: {
+    alignItems: 'center',
+    display: 'flex',
+    minHeight: 34,
+    width: '100%',
+
+    [u.smallerThan('sm')]: {
+      minHeight: 30,
+    },
+  },
+  reverseButton: {
+    [u.smallerThan('sm')]: {
+      height: 32,
+      minWidth: 32,
+      width: 32,
+    },
+  },
+  submitButton: {
+    [u.smallerThan('sm')]: {
+      fontSize: theme.fontSizes.sm,
+      height: 36,
+    },
+  },
+}));
 
 type TokenButtonProps = {
   token: Token | null;
@@ -50,20 +158,30 @@ type TokenButtonProps = {
 };
 
 function TokenButton({ token, label, disabled, loading, onClick }: TokenButtonProps) {
+  const { classes } = useStyles();
   const button = (
     <Button
+      className={classes.tokenButton}
       disabled={disabled}
-      maw={SWAP_TOKEN_BUTTON_MAX_WIDTH}
-      miw={SWAP_TOKEN_BUTTON_MIN_WIDTH}
-      px="sm"
-      rightSection={<IconChevronDown size={18} />}
-      sx={{ flexShrink: 0 }}
+      rightSection={<IconChevronDown size={16} />}
+      size="sm"
       variant="light"
       onClick={onClick}
     >
       {token ? (
-        <Group align="center" gap="xs" miw={0} wrap="nowrap">
-          <TokenIcon size={SWAP_TOKEN_BUTTON_ICON_SIZE} symbol={token.symbol} src={token.iconUrl} />
+        <Group
+          align="center"
+          className={classes.tokenButtonInner}
+          gap="xs"
+          miw={0}
+          wrap="nowrap"
+        >
+          <TokenIcon
+            className={classes.tokenButtonIcon}
+            size={20}
+            symbol={token.symbol}
+            src={token.iconUrl}
+          />
           <OverflowTooltip fw={700}>{token.symbol}</OverflowTooltip>
         </Group>
       ) : (
@@ -74,7 +192,7 @@ function TokenButton({ token, label, disabled, loading, onClick }: TokenButtonPr
 
   if (loading) {
     return (
-      <Skeleton radius="md" w={SWAP_TOKEN_BUTTON_MAX_WIDTH}>
+      <Skeleton className={classes.tokenButtonSkeleton} radius="md">
         {button}
       </Skeleton>
     );
@@ -84,6 +202,7 @@ function TokenButton({ token, label, disabled, loading, onClick }: TokenButtonPr
 }
 
 export function SwapForm() {
+  const { classes } = useStyles();
   const tokenListQuery = useTokenListQuery();
   const showLoadingPlaceholders = useDelayedVisible(
     tokenListQuery.isPending,
@@ -93,16 +212,8 @@ export function SwapForm() {
   const tokens = tokenListQuery.data ?? [];
   const [modalTarget, setModalTarget] = useState<ModalTarget | null>(null);
   const [detailsOpened, setDetailsOpened] = useState(false);
-  const {
-    control,
-    errors,
-    handleSubmit,
-    reverseTokens,
-    selectToken,
-    setAmount,
-    tokenMap,
-    watch,
-  } = useSwapForm(tokens);
+  const { control, errors, handleSubmit, reverseTokens, selectToken, setAmount, tokenMap, watch } =
+    useSwapForm(tokens);
 
   const [fromAmount, fromCurrency, toCurrency] = watch([
     'fromAmount',
@@ -118,10 +229,14 @@ export function SwapForm() {
   });
   const isReady = tokenListQuery.isSuccess && tokens.length >= MIN_SUPPORTED_TOKEN_COUNT;
   const isActionDisabled = !isReady || swapMutation.isPending;
+  const latestPriceUpdate = getLatestPriceUpdate(fromToken?.updatedAt, toToken?.updatedAt);
+  const toAmountText = toAmount > 0 ? formatTokenAmount(toAmount) : '0';
 
   const fromHelperText = errors.fromAmount?.message ?? formatUsd(fromUsdValue);
   const toHelperText = errors.toCurrency?.message ?? formatUsd(toUsdValue);
   const rateText = `1 ${fromToken?.symbol ?? '-'} = ${formatRate(rate)} ${toToken?.symbol ?? '-'}`;
+  const amountFontSizes = getAmountFontSizes(fromAmount);
+  const outputFontSizes = getAmountFontSizes(toAmountText);
 
   function handleSelectToken(symbol: string) {
     if (!modalTarget) {
@@ -132,14 +247,14 @@ export function SwapForm() {
   }
 
   return (
-    <Paper w={SWAP_FORM_WIDTH} p="lg" shadow="md" withBorder>
+    <Paper className={classes.form} shadow="md" withBorder>
       <form onSubmit={handleSubmit(submitSwap)}>
-        <Stack gap="md">
+        <Stack className={classes.formStack} gap="md">
           <Stack gap={2}>
-            <Text fw={700} size="xl">
+            <Text className={classes.title} fw={700} size="lg">
               Swap
             </Text>
-            <Text c="dimmed" size="sm">
+            <Text c="dimmed" className={classes.description} size="sm">
               Preview a simulated token swap with live prices.
             </Text>
           </Stack>
@@ -150,16 +265,31 @@ export function SwapForm() {
             </Alert>
           ) : null}
 
+          {tokenListQuery.isSuccess && !isReady ? (
+            <Alert color="yellow" icon={<IconInfoCircle size={18} />} title="Not enough token data">
+              The price feed must return at least two supported tokens before a swap can be
+              reviewed.
+            </Alert>
+          ) : null}
+
           <Stack gap="xs">
-            <SwapCard>
-              <Stack gap={4} miw={0}>
-                <Text c="dimmed" fw={700} size="sm">
-                  From
-                </Text>
-                <Controller
-                  control={control}
-                  name="fromAmount"
-                  render={({ field }) => (
+            <SwapCard
+              label="From"
+              tokenControl={
+                <TokenButton
+                  disabled={isActionDisabled}
+                  label="Select"
+                  loading={showLoadingPlaceholders}
+                  token={fromToken}
+                  onClick={() => setModalTarget('from')}
+                />
+              }
+            >
+              <Controller
+                control={control}
+                name="fromAmount"
+                render={({ field }) => (
+                  <div className={classes.amountField}>
                     <TextInput
                       aria-invalid={errors.fromAmount ? true : undefined}
                       aria-label="Amount to sell"
@@ -167,143 +297,138 @@ export function SwapForm() {
                       name={field.name}
                       placeholder="0"
                       ref={field.ref}
-                      size="xl"
+                      size="md"
+                      styles={(_theme, _props, u) => ({
+                        input: {
+                          fontSize: amountFontSizes.desktop,
+                          height: 34,
+                          lineHeight: 1.1,
+                          minHeight: 34,
+                          paddingBlock: 0,
+                          [u.smallerThan('sm')]: {
+                            fontSize: amountFontSizes.mobile,
+                            height: 30,
+                            minHeight: 30,
+                          },
+                        },
+                      })}
                       value={field.value}
                       variant="unstyled"
+                      w="100%"
                       onBlur={field.onBlur}
                       onChange={(event) => setAmount(event.currentTarget.value)}
                     />
-                  )}
-                />
-                <OverflowTooltip
-                  c={errors.fromAmount ? 'red' : 'dimmed'}
-                  fw={600}
-                  fz="sm"
-                  label={fromHelperText}
-                >
-                  {fromHelperText}
-                </OverflowTooltip>
-              </Stack>
-
-              <TokenButton
-                disabled={isActionDisabled}
-                label="Select"
-                loading={showLoadingPlaceholders}
-                token={fromToken}
-                onClick={() => setModalTarget('from')}
+                  </div>
+                )}
               />
+              <OverflowTooltip
+                c={errors.fromAmount ? 'red' : 'dimmed'}
+                className={classes.helperText}
+                fw={600}
+                fz="sm"
+                label={fromHelperText}
+              >
+                {fromHelperText}
+              </OverflowTooltip>
             </SwapCard>
 
-            <Box ta="center">
+            <Group justify="center">
               <ActionIcon
                 aria-label="Reverse swap direction"
+                className={classes.reverseButton}
                 disabled={isActionDisabled}
-                size="lg"
+                size="md"
                 variant="light"
                 onClick={reverseTokens}
               >
-                <IconArrowsDownUp size={20} />
+                <IconArrowsDownUp size={18} />
               </ActionIcon>
-            </Box>
+            </Group>
 
-            <SwapCard>
-              <Stack gap={4} miw={0}>
-                <Text c="dimmed" fw={700} size="sm">
-                  To
-                </Text>
-                {showLoadingPlaceholders ? (
-                  <Skeleton height={38} maw="70%" />
-                ) : (
-                  <OverflowTooltip fw={700} fz={OUTPUT_AMOUNT_FONT_SIZE} lh={1.2}>
-                    {toAmount > 0 ? formatTokenAmount(toAmount) : '0'}
-                  </OverflowTooltip>
-                )}
-                {showLoadingPlaceholders ? (
-                  <Skeleton height={18} maw={96} />
-                ) : (
+            <SwapCard
+              label="To"
+              tokenControl={
+                <TokenButton
+                  disabled={isActionDisabled}
+                  label="Select"
+                  loading={showLoadingPlaceholders}
+                  token={toToken}
+                  onClick={() => setModalTarget('to')}
+                />
+              }
+            >
+              {showLoadingPlaceholders ? (
+                <Skeleton height={32} maw="70%" />
+              ) : (
+                <div className={classes.outputAmount}>
                   <OverflowTooltip
-                    c={errors.toCurrency ? 'red' : 'dimmed'}
-                    fw={600}
-                    fz="sm"
-                    label={toHelperText}
+                    fw={700}
+                    fz={outputFontSizes.desktop}
+                    lh={1.2}
+                    sx={(_theme, u) => ({
+                      width: '100%',
+                      [u.smallerThan('sm')]: {
+                        fontSize: outputFontSizes.mobile,
+                      },
+                    })}
                   >
-                    {toHelperText}
+                    {toAmountText}
                   </OverflowTooltip>
-                )}
-              </Stack>
-
-              <TokenButton
-                disabled={isActionDisabled}
-                label="Select"
-                loading={showLoadingPlaceholders}
-                token={toToken}
-                onClick={() => setModalTarget('to')}
-              />
+                </div>
+              )}
+              {showLoadingPlaceholders ? (
+                <Skeleton height={18} maw={96} />
+              ) : (
+                <OverflowTooltip
+                  c={errors.toCurrency ? 'red' : 'dimmed'}
+                  className={classes.helperText}
+                  fw={600}
+                  fz="sm"
+                  label={toHelperText}
+                >
+                  {toHelperText}
+                </OverflowTooltip>
+              )}
             </SwapCard>
           </Stack>
 
           <Button
+            className={classes.submitButton}
             disabled={isActionDisabled}
             fullWidth
             loading={swapMutation.isPending}
-            size="lg"
+            size="md"
             type="submit"
           >
             Review swap
           </Button>
 
           <Stack gap="xs">
-            <Group justify="space-between" wrap="nowrap">
-              <Text c="dimmed" fw={600} size="sm">
-                Rate
-              </Text>
-              {showLoadingPlaceholders ? (
-                <Skeleton height={18} width={160} />
-              ) : (
-                <OverflowTooltip fw={700} fz="sm" maw="70%" ta="right">
-                  {rateText}
-                </OverflowTooltip>
-              )}
-            </Group>
-            <Group justify="space-between" wrap="nowrap">
-              <Text c="dimmed" fw={600} size="sm">
-                Price impact
-              </Text>
-              {showLoadingPlaceholders ? (
-                <Skeleton height={18} width={56} />
-              ) : (
-                <Text c="teal" fw={700} size="sm">
-                  {MOCK_PRICE_IMPACT_LABEL}
-                </Text>
-              )}
-            </Group>
+            <DetailRow
+              label="Rate"
+              loading={showLoadingPlaceholders}
+              skeletonWidth={160}
+              value={rateText}
+            />
+            <DetailRow
+              label="Sell value"
+              loading={showLoadingPlaceholders}
+              skeletonWidth={56}
+              value={formatUsd(fromUsdValue)}
+            />
 
             <Collapse expanded={detailsOpened}>
               <Stack gap="xs" mt="xs">
                 <Divider />
-                <Group justify="space-between" wrap="nowrap">
-                  <Text c="dimmed" fw={600} size="sm">
-                    Max slippage
-                  </Text>
-                  <Text fw={700} size="sm">
-                    {MOCK_MAX_SLIPPAGE_LABEL}
-                  </Text>
-                </Group>
-                <Group justify="space-between" wrap="nowrap">
-                  <Text c="dimmed" fw={600} size="sm">
-                    Network fee
-                  </Text>
-                  <Text fw={700} size="sm">
-                    {formatUsd(MOCK_NETWORK_FEE_USD)}
-                  </Text>
-                </Group>
+                <DetailRow label="Receive value" value={formatUsd(toUsdValue)} />
+                <DetailRow label="Price updated" value={formatPriceTimestamp(latestPriceUpdate)} />
               </Stack>
             </Collapse>
 
             <Button
               color="gray"
               disabled={isActionDisabled}
-              size={SWAP_DETAILS_BUTTON_SIZE}
+              size="sm"
               variant="subtle"
               onClick={() => setDetailsOpened((opened) => !opened)}
             >
@@ -326,23 +451,64 @@ export function SwapForm() {
   );
 }
 
-function SwapCard({ children }: { children: ReactNode }) {
+type SwapCardProps = {
+  children: ReactNode;
+  label: string;
+  tokenControl: ReactNode;
+};
+
+function SwapCard({ children, label, tokenControl }: SwapCardProps) {
+  const { classes } = useStyles();
+
   return (
-    <Paper p="md" withBorder>
-      <Box
-        sx={{
-          alignItems: 'center',
-          display: 'grid',
-          gap: 'var(--mantine-spacing-md)',
-          gridTemplateColumns: 'minmax(0, 1fr) auto',
-        }}
-      >
+    <Paper className={classes.swapCard} withBorder>
+      <Stack gap="xs">
+        <Group className={classes.cardHeader} wrap="nowrap">
+          <Text c="dimmed" className={classes.cardLabel} fw={700} size="sm">
+            {label}
+          </Text>
+          {tokenControl}
+        </Group>
         {children}
-      </Box>
+      </Stack>
     </Paper>
   );
 }
 
+function getAmountFontSizes(value: string) {
+  const length = value.replace(/[^\d]/g, '').length;
+
+  if (length > 14) {
+    return { desktop: 22, mobile: 18 };
+  }
+
+  if (length > 10) {
+    return { desktop: 24, mobile: 20 };
+  }
+
+  return { desktop: 28, mobile: 24 };
+}
+
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
+}
+
+function getLatestPriceUpdate(...dates: Array<string | null | undefined>) {
+  return dates
+    .filter((date): date is string => Boolean(date))
+    .reduce<string | null>((latest, date) => {
+      const nextTime = new Date(date).getTime();
+
+      if (Number.isNaN(nextTime)) {
+        return latest;
+      }
+
+      if (!latest) {
+        return date;
+      }
+
+      const latestTime = new Date(latest).getTime();
+
+      return Number.isNaN(latestTime) || nextTime > latestTime ? date : latest;
+    }, null);
 }

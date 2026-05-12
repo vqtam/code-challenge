@@ -11,10 +11,17 @@ export function ColorSchemeToggle() {
       <ActionIcon
         aria-label={isDark ? 'Use light mode' : 'Use dark mode'}
         size="lg"
+        sx={(_theme, u) => ({
+          [u.smallerThan('sm')]: {
+            height: 40,
+            minWidth: 40,
+            width: 40,
+          },
+        })}
         variant="light"
         onClick={() => setColorScheme(isDark ? 'light' : 'dark')}
       >
-        {isDark ? <IconSun size={20} /> : <IconMoon size={20} />}
+        {isDark ? <IconSun size={18} /> : <IconMoon size={18} />}
       </ActionIcon>
     </Tooltip>
   );

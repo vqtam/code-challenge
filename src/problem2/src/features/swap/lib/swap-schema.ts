@@ -11,10 +11,15 @@ export const swapFormSchema = z.object({
     .string()
     .trim()
     .min(1, 'Enter an amount.')
-    .regex(
-      SWAP_AMOUNT_PATTERN,
-      `Enter up to ${AMOUNT_MAX_INTEGER_DIGITS} digits and ${AMOUNT_MAX_FRACTION_DIGITS} decimals.`,
-    )
+    .refine((value) => !/[a-z]/i.test(value), {
+      message: 'Enter a number, not letters.',
+    })
+    .refine((value) => !value.trim().startsWith('-'), {
+      message: 'Enter an amount greater than 0.',
+    })
+    .refine((value) => SWAP_AMOUNT_PATTERN.test(value), {
+      message: `Enter up to ${AMOUNT_MAX_INTEGER_DIGITS} digits and ${AMOUNT_MAX_FRACTION_DIGITS} decimals.`,
+    })
     .refine((value) => Number.isFinite(Number(value)) && Number(value) > 0, {
       message: 'Enter an amount greater than 0.',
     }),
